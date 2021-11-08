@@ -30,11 +30,11 @@ contract SimpleBank {
     event LogEnrolled(address accountAddress);
 
     // Add 2 arguments for this event, an accountAddress and an amount
-    event LogDepositMade();
+    event LogDepositMade(address accountAddress, uint amount);
 
     // Create an event called LogWithdrawal
     // Hint: it should take 3 arguments: an accountAddress, withdrawAmount and a newBalance
-    event LogWithdrawal();
+    event LogWithdrawal(address accountAddress, uint withdrawAmount, uint newBalance);
 
     /* Functions
      */
@@ -50,10 +50,11 @@ contract SimpleBank {
 
     /// @notice Get balance
     /// @return The balance of the user
-    function getBalance() public returns (uint256) {
+    function getBalance() public view returns (uint256) {
         // 1. A SPECIAL KEYWORD prevents function from editing state variables;
         //    allows function to run locally/off blockchain
         // 2. Get the balance of the sender of this transaction
+        return balances[msg.sender];
     }
 
     /// @notice Enroll a customer with the bank
@@ -70,13 +71,21 @@ contract SimpleBank {
 
     /// @notice Deposit ether into bank
     /// @return The balance of the user after the deposit is made
-    function deposit() public returns (uint256) {
+    function deposit() public payable returns (uint256) {
         // 1. Add the appropriate keyword so that this function can receive ether
         // 2. Users should be enrolled before they can make deposits
         // 3. Add the amount to the user's balance. Hint: the amount can be
         //    accessed from of the global variable `msg`
         // 4. Emit the appropriate event associated with this function
         // 5. return the balance of sndr of this transaction
+
+        require(enrolled[msg.sender], "User not enrolled");
+
+        balances[msg.sender] += msg.value;
+
+        emit LogDepositMade(msg.sender, msg.value);
+
+        return balances[msg.sender];
     }
 
     /// @notice Withdraw ether from bank
@@ -92,5 +101,16 @@ contract SimpleBank {
         // 2. Transfer Eth to the sender and decrement the withdrawal amount from
         //    sender's balance
         // 3. Emit the appropriate event for this message
+
+        require(balances[msg.sender] >= withdrawAmount, "Not enough Balance");
+
+        (bool sent, bytes memory data) = msg.sender.call.value(withdrawAmount)("");
+
+        require(sent, "Failed to send Ether");
+
+        balances[msg.sender] -= withdrawAmount;
+
+        emit LogWithdrawal(msg.sender, withdrawAmount, balances[msg.sender]);
+
     }
 }
